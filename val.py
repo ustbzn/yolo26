@@ -11,13 +11,13 @@ from ultralytics import YOLO
 def main():
     model = YOLO(str(ROOT / "ultralytics/cfg/models/26/yolo26m-lt.yaml"))
     model.load(
-        "/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights/train/weights/best.pt"
+        "/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim/30wframes_imgsz_1280_bs5122/weights/best.pt"
     )
 
     metrics = model.val(
         data=str(ROOT / "ultralytics/cfg/datasets/mogo.yaml"),
         split="val",
-        imgsz=1600,
+        imgsz=1280,
         conf=0.3,
         iou=0.7,
         device=0,

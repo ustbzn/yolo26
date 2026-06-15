@@ -1,6 +1,6 @@
 # GT Viewer — 交通灯标注审核/修正工具
 
-多人协同的 Web 可视化工具，用于查看、修正、绘制和保存 YOLO 格式的 6cls 交通灯标注。
+多人协同的 Web 可视化工具，用于查看、修正、绘制和保存 YOLO 格式的 10cls 交通灯标注。
 支持两种数据来源：
 
 - 通过 `--data-root` 扫描 case 数据目录下的 `*/images/*`
@@ -38,10 +38,13 @@ tail -20 /tmp/case_data_gt_viewer.log
 
 ## 先模型推理，再进入工具修正
 
-如果 `labels_6cls` 为空，可先用模型生成初始标注。当前 case 数据使用的权重：
+如果 `labels_10cls` 为空，可先用模型生成初始标注。当前 case 数据使用的 10 类 timer 模型权重与配置：
 
 ```bash
-/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim/train5/weights/best.pt
+# 权重
+/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer/3600frames_lr1e-45/weights/best.pt
+# 模型配置（参考 infer.py：先用 yaml 建模型再 load 权重）
+/pcpt/pcpt/project/atlb/vla/ultralytics/ultralytics/cfg/models/26/yolo26m-timer.yaml
 ```
 
 启动时自动推理缺失 label：
@@ -51,7 +54,8 @@ cd /pcpt/pcpt/project/atlb/vla/ultralytics
 
 python tools/gt_viewer.py \
   --data-root /pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau \
-  --weights /pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim/train5/weights/best.pt \
+  --weights /pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer/3600frames_lr1e-45/weights/best.pt \
+  --model-cfg /pcpt/pcpt/project/atlb/vla/ultralytics/ultralytics/cfg/models/26/yolo26m-timer.yaml \
   --infer-on-start \
   --imgsz 1600 \
   --conf 0.3 \
@@ -59,14 +63,16 @@ python tools/gt_viewer.py \
   --device 0 \
   --batch 1 \
   --host 0.0.0.0 \
-  --port 8888
+  --port 8889
 ```
 
 说明：
 
-- 默认只为缺失的 label 生成 `labels_6cls/*.txt`
+- 默认只为缺失的 label 生成 `labels_10cls/*.txt`
 - 不会覆盖已有 label
 - 如需覆盖已有 label，显式追加 `--overwrite-labels`
+- `--weights` 和 `--model-cfg` 已默认指向上述 timer 模型，省略时即用默认值
+- 留空 `--model-cfg`（传 `""`）则退回直接用权重加载，不走 yaml 建模
 - 推理完成后会继续启动 Web 标注工具
 
 ---
@@ -86,7 +92,7 @@ ps -ef | awk '/gt_viewer[.]py/ && /case_data_mau/ {print $2}' | xargs -r kill
 在**本地电脑**终端执行：
 
 ```bash
-ssh -p 31970 -L 8888:127.0.0.1:8888 root@115.190.76.196
+ssh -p 31970 -L 8889:127.0.0.1:8889 root@115.190.76.196
 ```
 
 连上后浏览器打开：
@@ -127,20 +133,20 @@ case 数据目录结构：
 case_data_mau/
   shunyi_case/
     images/
-    labels_6cls/
+    labels_10cls/
   zhuhai_case2/
     images/
-    labels_6cls/
+    labels_10cls/
   zhuhai_case3/
     images/
-    labels_6cls/
+    labels_10cls/
 ```
 
-工具会将图片路径中的 `images/` 自动映射到 `labels_6cls/`：
+工具会将图片路径中的 `images/` 自动映射到 `labels_10cls/`：
 
 ```text
 .../images/0706_000001.jpg
-.../labels_6cls/0706_000001.txt
+.../labels_10cls/0706_000001.txt
 ```
 
 也可以读取 txt 数据集：
@@ -153,7 +159,7 @@ python tools/gt_viewer.py \
   --port 8888
 ```
 
-**6 个类别：**
+**10 个类别：**
 
 | ID | 类名 | 颜色 |
 |----|------|------|
@@ -163,6 +169,10 @@ python tools/gt_viewer.py \
 | 3 | BlackLight | ⚫ 灰 |
 | 4 | MovingTrafficLight | 🔵 蓝 |
 | 5 | MultiSemanticTrafficLights | 🟣 紫 |
+| 6 | BlackTimingCard | ⚫ 深灰 |
+| 7 | GreenTimingCard | 🟢 深绿 |
+| 8 | RedTimingCard | 🔴 暗红 |
+| 9 | YellowTimingCard | 🟡 金黄 |
 
 ---
 
@@ -227,7 +237,7 @@ python tools/gt_viewer.py \
 2. 点击「💾 保存结果」
 
 ```
-/pcpt/pcpt/data/2D-Det/COS/TXT/6cls/reviewed_output/accepted.txt
+/pcpt/pcpt/data/2D-Det/COS/TXT/10cls/reviewed_output/accepted.txt
 ```
 
 输出格式与原始 txt **完全一致**，每行一条图像绝对路径，仅包含 Accept 的帧。
@@ -258,7 +268,7 @@ tools/gt_viewer_progress.json
 检查 txt 文件中的路径是否挂载正常。
 
 **Q：label 文件不存在（橙色警告）？**  
-说明该帧还没有 `labels_6cls/*.txt`。可先用 `--infer-on-start` 批量生成，也可以手动画框后保存当前帧标注。
+说明该帧还没有 `labels_10cls/*.txt`。可先用 `--infer-on-start` 批量生成，也可以手动画框后保存当前帧标注。
 
 **Q：想重置所有进度？**  
 删除对应进度文件，重启服务即可。case 数据默认是 `tools/gt_viewer_case_data_mau_progress.json`。

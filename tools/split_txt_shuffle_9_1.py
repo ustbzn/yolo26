@@ -29,7 +29,7 @@ def write_lines(path: Path, lines: List[str]) -> None:
 
 
 def label_path_from_image(image_path: str) -> Path:
-    label_path = image_path.replace("/images/", "/labels_6cls/")
+    label_path = image_path.replace("/images/", "/labels_10cls/")
     return Path(label_path).with_suffix(".txt")
 
 
@@ -95,19 +95,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input",
         type=Path,
-        default=root / "dataset" / "bzp" / "dataset_paths_Q1_Q4.txt",
+        default=root / "dataset" / "timer" / "dataset_timer.txt",
         help="Input txt path.",
     )
     parser.add_argument(
         "--train-out",
         type=Path,
-        default=root / "dataset" / "bzp" / "train_paths_Q1_Q4.txt",
+        default=root / "dataset" / "timer" / "train_timer.txt",
         help="Train output txt path.",
     )
     parser.add_argument(
         "--val-out",
         type=Path,
-        default=root / "dataset" / "bzp" / "val_paths_Q1_Q4.txt",
+        default=root / "dataset" / "timer" / "val_timer.txt",
         help="Val output txt path.",
     )
     parser.add_argument(

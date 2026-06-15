@@ -68,7 +68,9 @@ def img2label_paths(img_paths: list[str]) -> list[str]:
     for x in img_paths:
         # breakpoint()
         base = x.rsplit(sa, 1)
-        label_dir = f"{os.sep}labels{os.sep}" if "obs_data/" in str(x) else f"{os.sep}labels_6cls{os.sep}"
+        # label_dir = f"{os.sep}labels{os.sep}" if "obs_data/" in str(x) else f"{os.sep}labels_6cls{os.sep}"
+        label_dir = f"{os.sep}labels{os.sep}" if "obs_data/" in str(x) else f"{os.sep}labels_10cls{os.sep}"
+        
         result.append(label_dir.join(base).rsplit(".", 1)[0] + ".txt")
     return result
 

@@ -24,7 +24,9 @@ from typing import List, Tuple
 # ──────────────────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CASE_DATA_ROOT = ROOT / "case_data_mau"
-DEFAULT_WEIGHTS = ROOT / "runs/detect/trafficlights/train/weights/best.pt"
+# 参考 infer.py：10 类 timer 模型，先用 yaml 配置建模型再 load 权重
+DEFAULT_MODEL_CFG = ROOT / "ultralytics/cfg/models/26/yolo26m-timer.yaml"
+DEFAULT_WEIGHTS = Path("/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer/3600frames_lr1e-45/weights/best.pt")
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 # TRAIN_TXT = "/pcpt/pcpt/data/2D-Det/COS/data_clean.txt"
@@ -36,10 +38,13 @@ VAL_TXT   = DEFAULT_VAL_TXT
 CLASS_NAMES = {
     0: "RedLight", 1: "GreenLight", 2: "YellowLight",
     3: "BlackLight", 4: "MovingTrafficLight", 5: "MultiSemanticTrafficLights",
+    6: "BlackTimingCard", 7: "GreenTimingCard", 8: "RedTimingCard",
+    9: "YellowTimingCard",
 }
 CLASS_COLORS = {
     0: (220,50,50), 1: (50,200,50), 2: (220,180,0),
     3: (130,130,130), 4: (50,150,255), 5: (200,50,200),
+    6: (80,80,80), 7: (0,160,90), 8: (180,40,40), 9: (240,200,40),
 }
 USER_COLORS = ["#4fc3f7","#81c784","#ffb74d","#f06292","#ce93d8","#80cbc4","#fff176","#ffcc80"]
 
@@ -51,7 +56,7 @@ RESTORED_USER = "accepted.txt"
 # 工具函数
 # ──────────────────────────────────────────────────────────────
 def get_label_path(img_path: str) -> str:
-    p = img_path.replace("/images/", "/labels_6cls/")
+    p = img_path.replace("/images/", "/labels_10cls/")
     return os.path.splitext(p)[0] + ".txt"
 
 def load_txt(path: str) -> List[str]:
@@ -86,6 +91,7 @@ def source_name(img_path: str) -> str:
 def run_model_infer(
     weights: str,
     image_paths: List[str],
+    model_cfg: str = "",
     imgsz: int = 1600,
     conf: float = 0.3,
     iou: float = 0.7,
@@ -93,7 +99,11 @@ def run_model_infer(
     batch: int = 16,
     overwrite: bool = False,
 ) -> None:
-    """使用 Ultralytics 模型推理并写入 labels_6cls YOLO 标注。"""
+    """使用 Ultralytics 模型推理并写入 labels_10cls YOLO 标注。
+
+    参考 infer.py：若提供 model_cfg，则先用 yaml 配置构建模型再 load 权重，
+    以保证 10 类 timer 模型结构正确。
+    """
     todo = []
     for img_path in image_paths:
         label_path = get_label_path(img_path)
@@ -107,8 +117,12 @@ def run_model_infer(
         sys.path.insert(0, str(ROOT))
     from ultralytics import YOLO
 
-    print(f"[INFO] 开始模型推理: weights={weights}, images={len(todo)}, overwrite={overwrite}")
-    model = YOLO(weights)
+    print(f"[INFO] 开始模型推理: cfg={model_cfg or '-'}, weights={weights}, images={len(todo)}, overwrite={overwrite}")
+    if model_cfg:
+        model = YOLO(model_cfg)
+        model.load(weights)
+    else:
+        model = YOLO(weights)
     done = 0
     batch = max(1, int(batch))
     for start in range(0, len(todo), batch):
@@ -591,7 +605,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>GT Viewer — 6cls</title>
+<title>GT Viewer — 10cls</title>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 body { background:#1a1a1a; color:#ddd; font-family:'Courier New',monospace;
@@ -806,6 +820,10 @@ button:hover { opacity:.85; }
           <option value="3">3: BlackLight</option>
           <option value="4">4: MovingTrafficLight</option>
           <option value="5">5: MultiSemanticTrafficLights</option>
+          <option value="6">6: BlackTimingCard</option>
+          <option value="7">7: GreenTimingCard</option>
+          <option value="8">8: RedTimingCard</option>
+          <option value="9">9: YellowTimingCard</option>
         </select>
       </div>
       <button class="btn-save-label" id="btn-save-label" onclick="saveLabelFile()">
@@ -842,11 +860,14 @@ button:hover { opacity:.85; }
 // ── 常量（与后端 CLASS_NAMES / CLASS_COLORS 对应）──
 const CLASS_NAMES_JS = {
   0:"RedLight", 1:"GreenLight", 2:"YellowLight",
-  3:"BlackLight", 4:"MovingTrafficLight", 5:"MultiSemanticTrafficLights"
+  3:"BlackLight", 4:"MovingTrafficLight", 5:"MultiSemanticTrafficLights",
+  6:"BlackTimingCard", 7:"GreenTimingCard", 8:"RedTimingCard",
+  9:"YellowTimingCard"
 };
 const CLASS_COLORS_JS = {
   0:"#dc3232", 1:"#32c832", 2:"#dcb400",
-  3:"#828282", 4:"#3296ff", 5:"#c832c8"
+  3:"#828282", 4:"#3296ff", 5:"#c832c8",
+  6:"#505050", 7:"#00a05a", 8:"#b42828", 9:"#f0c828"
 };
 
 // ── 状态 ──
@@ -1389,7 +1410,9 @@ if __name__ == "__main__":
     parser.add_argument("--progress-file", type=str, default="",
                         help="审核进度 JSON 文件")
     parser.add_argument("--weights", type=str, default=str(DEFAULT_WEIGHTS),
-                        help="用于生成初始 labels_6cls 的模型权重")
+                        help="用于生成初始 labels_10cls 的模型权重")
+    parser.add_argument("--model-cfg", type=str, default=str(DEFAULT_MODEL_CFG),
+                        help="模型 yaml 配置；参考 infer.py 先建模型再 load 权重，留空则直接用权重")
     parser.add_argument("--infer-on-start", action="store_true",
                         help="启动 Web 服务前先对缺失 label 的图像做模型推理")
     parser.add_argument("--overwrite-labels", action="store_true",
@@ -1418,6 +1441,7 @@ if __name__ == "__main__":
         run_model_infer(
             weights=args.weights,
             image_paths=[p for p, _ in records],
+            model_cfg=args.model_cfg,
             imgsz=args.imgsz,
             conf=args.conf,
             iou=args.iou,

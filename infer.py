@@ -12,12 +12,16 @@ from ultralytics.utils.plotting import colors
 def set_custom_class_colors():
     # RGB colors for class IDs 0..5
     class_color_map = {
-        0: (255, 0, 0),    # red
-        1: (0, 255, 0),    # green
-        2: (255, 255, 0),  # yellow
-        3: (0, 0, 0),      # black
-        4: (0, 0, 255),    # blue
-        5: (128, 0, 128),  # purple
+        0: (255, 0, 0),      # red
+        1: (0, 255, 0),      # green
+        2: (255, 255, 0),    # yellow
+        3: (0, 0, 0),        # black
+        4: (0, 0, 255),      # blue
+        5: (128, 0, 128),    # purple
+        6: (255, 165, 0),    # orange
+        7: (0, 255, 255),    # cyan
+        8: (255, 192, 203),  # pink
+        9: (128, 128, 128),  # gray
     }
 
     for cls_id, rgb in class_color_map.items():
@@ -28,21 +32,26 @@ def set_custom_class_colors():
 def main():
     set_custom_class_colors()
 
-    model = YOLO(str(ROOT / 'ultralytics/cfg/models/26/yolo26m-lt.yaml'))
-    model.load('/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim/30wframes_imgsz_1280_bs5122/weights/best.pt')
+    # model = YOLO(str(ROOT / 'ultralytics/cfg/models/26/yolo26m-lt.yaml'))
+    model = YOLO(str(ROOT / 'ultralytics/cfg/models/26/yolo26m-timer.yaml'))
+    
+    model.load('/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer/3600frames_lr1e-411/weights/best.pt')
     # model.load('/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/train17/weights/epoch99.pt')
     results = model.predict(
         # source='/pcpt/pcpt/project/baozhiping/ultralytics-main_1/yolo26_1/',
         # source='/pcpt/pcpt/project/baozhiping/ultralytics-main_1/yolo26_1_30/',
-        source='/pcpt/pcpt/project/baozhiping/ultralytics-main_1/yolo26_2_60/',
+        # source='/pcpt/pcpt/project/baozhiping/ultralytics-main_1/yolo26_2_60/',
         # source='/pcpt/pcpt/project/baozhiping/xinjiapo',
         # source='/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/shunyi_case2/images',
         # source='/pcpt/pcpt/project/baozhiping/xinjiapo_2',
         # source='/pcpt/pcpt/project/baozhiping/xinjiapo_3',
+        source = '/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/RBS-13333-logsim-60/images',
+        # source = '/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/RBS-138690-logsim-60/images',
+        # source = '/pcpt/pcpt/data/2D-Det/COS/2026_Q1/0128/badcase_zhuhai_20251203_47708_image60/images/1762843666.889003038.jpg',
         
         
-        imgsz=1600,
-        conf=0.6,
+        imgsz=1280,
+        conf=0.3,
         iou=0.7,
         device=0,
         save=True,
