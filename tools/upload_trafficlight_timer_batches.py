@@ -8,8 +8,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Iterable, List
-
+from typing import Iterable
 
 DEFAULT_LISTS = [
     # Path("/pcpt/pcpt/data/2D-Det/COS/TXT/yolo26_fiter_data/train_data_filter_0525.txt"),
@@ -20,8 +19,8 @@ DEFAULT_OUTPUT_ROOT = Path("data_2")
 DEFAULT_COS_PREFIX = "newbag/2d_datas_remark_0604/"
 
 
-def read_image_paths(list_paths: Iterable[Path], dedup: bool) -> List[Path]:
-    image_paths: List[Path] = []
+def read_image_paths(list_paths: Iterable[Path], dedup: bool) -> list[Path]:
+    image_paths: list[Path] = []
     seen = set()
 
     for list_path in list_paths:
