@@ -162,18 +162,18 @@ python tools/gt_viewer.py \
 
 **10 个类别：**
 
-| ID | 类名 | 颜色 |
-|----|------|------|
-| 0 | RedLight | 🔴 红 |
-| 1 | GreenLight | 🟢 绿 |
-| 2 | YellowLight | 🟡 黄 |
-| 3 | BlackLight | ⚫ 灰 |
-| 4 | MovingTrafficLight | 🔵 蓝 |
-| 5 | MultiSemanticTrafficLights | 🟣 紫 |
-| 6 | BlackTimingCard | ⚫ 深灰 |
-| 7 | GreenTimingCard | 🟢 深绿 |
-| 8 | RedTimingCard | 🔴 暗红 |
-| 9 | YellowTimingCard | 🟡 金黄 |
+| ID  | 类名                       | 颜色    |
+| --- | -------------------------- | ------- |
+| 0   | RedLight                   | 🔴 红   |
+| 1   | GreenLight                 | 🟢 绿   |
+| 2   | YellowLight                | 🟡 黄   |
+| 3   | BlackLight                 | ⚫ 灰   |
+| 4   | MovingTrafficLight         | 🔵 蓝   |
+| 5   | MultiSemanticTrafficLights | 🟣 紫   |
+| 6   | BlackTimingCard            | ⚫ 深灰 |
+| 7   | GreenTimingCard            | 🟢 深绿 |
+| 8   | RedTimingCard              | 🔴 暗红 |
+| 9   | YellowTimingCard           | 🟡 金黄 |
 
 ---
 
@@ -188,22 +188,22 @@ python tools/gt_viewer.py \
 
 ### 2. 浏览帧
 
-| 操作 | 按钮 | 快捷键 |
-|------|------|--------|
-| 上一帧 | ◀ 上一帧 | `←` 或 `A` |
-| 下一帧 | 下一帧 ▶ | `→` 或 `D` |
-| 跳到指定帧 | 输入帧号 → Go | 输入框回车 |
-| 下一个未审帧 | ⏭ 下一未审帧 | `N` |
+| 操作         | 按钮          | 快捷键     |
+| ------------ | ------------- | ---------- |
+| 上一帧       | ◀ 上一帧      | `←` 或 `A` |
+| 下一帧       | 下一帧 ▶      | `→` 或 `D` |
+| 跳到指定帧   | 输入帧号 → Go | 输入框回车 |
+| 下一个未审帧 | ⏭ 下一未审帧  | `N`        |
 
 ---
 
 ### 3. 标注
 
-| 操作 | 含义 | 行为 |
-|------|------|------|
-| ✔ **Accept** | 标注正确，保留 | 自动跳到下一未审帧 |
-| ✘ **Reject** | 标注有误，剔除 | 停留当前帧 |
-| 再次点击同一按钮 | 取消本次标注 | — |
+| 操作             | 含义           | 行为               |
+| ---------------- | -------------- | ------------------ |
+| ✔ **Accept**     | 标注正确，保留 | 自动跳到下一未审帧 |
+| ✘ **Reject**     | 标注有误，剔除 | 停留当前帧         |
+| 再次点击同一按钮 | 取消本次标注   | —                  |
 
 快捷键：`Q` = Accept，`E` = Reject
 
@@ -211,13 +211,13 @@ python tools/gt_viewer.py \
 
 ### 4. 修改标注框
 
-| 操作 | 方法 |
-|------|------|
-| 新增框 | 在图像空白处按住鼠标左键拖拽 |
-| 选择框 | 点击已有框 |
-| 修改类别 | 选中框后在右侧类别下拉框修改 |
-| 删除框 | 选中框后点「删除此框」或按 `Delete` / `Backspace` |
-| 保存当前帧 label | 点击右侧「保存当前帧标注」 |
+| 操作             | 方法                                              |
+| ---------------- | ------------------------------------------------- |
+| 新增框           | 在图像空白处按住鼠标左键拖拽                      |
+| 选择框           | 点击已有框                                        |
+| 修改类别         | 选中框后在右侧类别下拉框修改                      |
+| 删除框           | 选中框后点「删除此框」或按 `Delete` / `Backspace` |
+| 保存当前帧 label | 点击右侧「保存当前帧标注」                        |
 
 新增框默认类别可在右下角「拉框默认类别」中选择。
 
@@ -282,7 +282,7 @@ tools/gt_viewer_progress.json
 
 ```bash
 ps -ef | awk '/gt_viewer[.]py/ {print}'
-netstat -ltnp 2>/dev/null | awk '$4 ~ /:8888$/ {print}'
+netstat -ltnp 2> /dev/null | awk '$4 ~ /:8888$/ {print}'
 curl -I http://127.0.0.1:8888/
 ```
 
