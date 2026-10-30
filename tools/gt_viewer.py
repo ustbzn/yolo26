@@ -1379,6 +1379,7 @@ document.addEventListener('keydown', e => {
   if(e.key==='ArrowRight'||e.key==='d') go(+1);
   if(e.key==='q') doMark('accept');
   if(e.key==='e') doMark('reject');
+  if(e.key==='s') saveLabelFile();
   if(e.key==='c') doClear();
   if(e.key==='n') jumpNextNew();
   if((e.key==='Delete'||e.key==='Backspace') && selectedBox>=0) {

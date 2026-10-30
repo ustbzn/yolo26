@@ -18,7 +18,7 @@ def parse_args():
         help="Path to .pt model file",
     )
     parser.add_argument("--imgsz", type=int, default=640, help="Export image size")
-    parser.add_argument("--batch", type=int, default=1, help="Batch size for export")
+    parser.add_argument("--batch", type=int, default=2, help="Batch size for export")
     parser.add_argument("--device", type=str, default="0", help="Export device, e.g. '0' or 'cpu'")
     parser.add_argument("--opset", type=int, default=None, help="ONNX opset version")
     parser.add_argument("--dynamic", action="store_true", help="Enable dynamic input shape")

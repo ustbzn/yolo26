@@ -1,7 +1,7 @@
 # mkdir -p runs/detect/train
 
 # python train.py
-python train_timer.py
+python train_timer-dla.py
 # python train.py > runs/detect/train_$(date +"%Y%m%d_%H%M%S").log 2>&1
 # ps -ef|grep python |grep -v grep|awk '{print $2}'|xargs kill -9
 

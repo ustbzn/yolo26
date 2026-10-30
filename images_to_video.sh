@@ -6,8 +6,8 @@ set -euo pipefail
 #   2) output mp4  (default: <input>/out.mp4)
 #   3) fps         (default: 25)
 #   4) size        (optional, WIDTHxHEIGHT like 1920x1080)
-INPUT_DIR="${1:-runs/detect/predict3}"
-OUTPUT_VIDEO="${2:-${INPUT_DIR%/}/debug6.mp4}"
+INPUT_DIR="${1:-runs/detect/predict37}"
+OUTPUT_VIDEO="${2:-${INPUT_DIR%/}/debug37.mp4}"
 FPS="${3:-10}"
 SIZE="${4:-800x600}"
 

@@ -54,7 +54,7 @@ cd /pcpt/pcpt/project/atlb/vla/ultralytics
 
 python tools/gt_viewer.py \
   --data-root /pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau \
-  --weights /pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer/3600frames_lr1e-45/weights/best.pt \
+  --weights /pcpt/pcpt/project/baozhiping/ultralytics/vision_models/yolo26_sp_v18/yolo26_v18.pt \
   --model-cfg /pcpt/pcpt/project/atlb/vla/ultralytics/ultralytics/cfg/models/26/yolo26m-timer.yaml \
   --infer-on-start \
   --imgsz 1600 \
@@ -92,13 +92,14 @@ ps -ef | awk '/gt_viewer[.]py/ && /case_data_mau/ {print $2}' | xargs -r kill
 在**本地电脑**终端执行：
 
 ```bash
+ssh -p 46852 -L 8881:127.0.0.1:8889 root@115.190.76.196
 ssh -p 31970 -L 8889:127.0.0.1:8889 root@115.190.76.196
 ```
 
 连上后浏览器打开：
 
 ```
-http://127.0.0.1:8888
+http://127.0.0.1:8889
 ```
 
 如果本地 `8888` 端口被占用，改用：

@@ -33,9 +33,9 @@ def main():
     set_custom_class_colors()
 
     # model = YOLO(str(ROOT / 'ultralytics/cfg/models/26/yolo26m-lt.yaml'))
-    model = YOLO(str(ROOT / 'ultralytics/cfg/models/26/yolo26m-timer.yaml'))
+    model = YOLO(str(ROOT / 'ultralytics/cfg/models/26/yolo26m-timer-dla.yaml'))
     
-    model.load('/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer/3600frames_lr1e-411/weights/best.pt')
+    model.load('/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer-dla_m_dynamic/3600frames_lr1e-3/weights/best.pt')
     # model.load('/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/train17/weights/epoch99.pt')
     results = model.predict(
         # source='/pcpt/pcpt/project/baozhiping/ultralytics-main_1/yolo26_1/',
@@ -45,17 +45,19 @@ def main():
         # source='/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/shunyi_case2/images',
         # source='/pcpt/pcpt/project/baozhiping/xinjiapo_2',
         # source='/pcpt/pcpt/project/baozhiping/xinjiapo_3',
-        source = '/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/RBS-13333-logsim-60/images',
-        # source = '/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/RBS-138690-logsim-60/images',
+        source = '/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/RBS-259715',
+        # source = '/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/RBS-167302-logsim-60/images',
+        # source = "/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/RBS-204458-60/images",
         # source = '/pcpt/pcpt/data/2D-Det/COS/2026_Q1/0128/badcase_zhuhai_20251203_47708_image60/images/1762843666.889003038.jpg',
-        
-        
-        imgsz=1280,
+
+        imgsz=800,
         conf=0.3,
         iou=0.7,
-        device=0,
+        device='cpu',
         save=True,
         show=False,
+        # batch=2,
+        # stream=False,
 
         # 👇 关键参数
         line_width=4,      # 框变细
