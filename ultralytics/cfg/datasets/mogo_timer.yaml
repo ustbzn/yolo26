@@ -20,28 +20,27 @@ path: open-images-v7 # dataset root dir
 
 # train: /pcpt/pcpt/data/2D-Det/COS/TXT/6cls/train_paths_day_6cls_filtercity_0212addQ1_0323.txt
 # val: /pcpt/pcpt/data/2D-Det/COS/TXT/6cls/old_day_val_6clsadd_Q1_0323.txt
-# test: 
+# test:
 
 # train: /pcpt/pcpt/data/2D-Det/COS/TXT/6cls/test_data_zn.txt
 # val: /pcpt/pcpt/data/2D-Det/COS/TXT/6cls/old_day_val_6clsadd_Q1_0323.txt
-# test: 
+# test:
 
 # train: /pcpt/pcpt/project/atlb/vla/ultralytics/tools/train.txt
 # val: /pcpt/pcpt/project/atlb/vla/ultralytics/tools/val.txt
-# test: 
+# test:
 
 # train: /pcpt/pcpt/project/atlb/vla/ultralytics/dataset/train_data_filter.txt
 # val: /pcpt/pcpt/project/atlb/vla/ultralytics/dataset/val_data_filter.txt
-# test: 
+# test:
 
 train: /pcpt/pcpt/project/atlb/vla/ultralytics/dataset/timer/train_timer.txt
 val: /pcpt/pcpt/project/atlb/vla/ultralytics/dataset/timer/val_timer.txt
-test: 
+test:
 # finetune
 # train: /pcpt/pcpt/project/atlb/vla/ultralytics/dataset/accepted.txt
 # val: /pcpt/pcpt/project/atlb/vla/ultralytics/dataset/accepted.txt
-# test: 
-
+# test:
 
 # Classes
 names:
@@ -55,7 +54,6 @@ names:
   7: GreenTimingCard
   8: RedTimingCard
   9: YellowTimingCard
-
 
 # Classes
 # names:
