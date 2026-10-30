@@ -10,8 +10,6 @@ nc: 10 # number of classes  trafic_light
 # nc: 7 # number of classes    small_obj
 # nc: 13 # number of classes    small_obj + trafic_light
 
-
-
 end2end: True # whether to use end-to-end mode
 reg_max: 1 # DFL bins
 scales: # model compound scaling constants, i.e. 'model=yolo26n.yaml' will call yolo26.yaml with scale 'n'
