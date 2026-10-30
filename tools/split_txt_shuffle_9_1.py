@@ -13,15 +13,14 @@ from __future__ import annotations
 import argparse
 import random
 from pathlib import Path
-from typing import List, Tuple
 
 
-def read_lines(path: Path) -> List[str]:
+def read_lines(path: Path) -> list[str]:
     with path.open("r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
 
 
-def write_lines(path: Path, lines: List[str]) -> None:
+def write_lines(path: Path, lines: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
         if lines:
@@ -51,10 +50,10 @@ def has_gt_box(label_path: Path) -> bool:
     return False
 
 
-def filter_lines_with_gt(lines: List[str]) -> Tuple[List[str], List[Tuple[str, Path]], List[Tuple[str, Path]]]:
-    kept: List[str] = []
-    missing_labels: List[Tuple[str, Path]] = []
-    empty_labels: List[Tuple[str, Path]] = []
+def filter_lines_with_gt(lines: list[str]) -> tuple[list[str], list[tuple[str, Path]], list[tuple[str, Path]]]:
+    kept: list[str] = []
+    missing_labels: list[tuple[str, Path]] = []
+    empty_labels: list[tuple[str, Path]] = []
 
     for line in lines:
         label_path = label_path_from_image(line)
@@ -69,7 +68,7 @@ def filter_lines_with_gt(lines: List[str]) -> Tuple[List[str], List[Tuple[str, P
     return kept, missing_labels, empty_labels
 
 
-def split_shuffled(lines: List[str], val_ratio: float, seed: int) -> tuple[List[str], List[str]]:
+def split_shuffled(lines: list[str], val_ratio: float, seed: int) -> tuple[list[str], list[str]]:
     items = list(lines)
     random.Random(seed).shuffle(items)
 
@@ -78,7 +77,7 @@ def split_shuffled(lines: List[str], val_ratio: float, seed: int) -> tuple[List[
         return [], []
 
     ratio = min(max(val_ratio, 0.0), 1.0)
-    val_n = int(round(n * ratio))
+    val_n = round(n * ratio)
     if n > 1 and ratio > 0:
         val_n = max(1, val_n)
     val_n = min(val_n, n)
@@ -150,8 +149,8 @@ def main() -> None:
             deduped.append(x)
         lines = deduped
 
-    missing_labels: List[Tuple[str, Path]] = []
-    empty_labels: List[Tuple[str, Path]] = []
+    missing_labels: list[tuple[str, Path]] = []
+    empty_labels: list[tuple[str, Path]] = []
     if not args.no_filter_gt:
         lines, missing_labels, empty_labels = filter_lines_with_gt(lines)
 

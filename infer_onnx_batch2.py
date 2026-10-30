@@ -5,10 +5,11 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ultralytics import YOLO
-from ultralytics.utils.plotting import colors
 import cv2
 import numpy as np
+
+from ultralytics import YOLO
+from ultralytics.utils.plotting import colors
 
 ONNX = "/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer-dla/3600frames_lr1e-3/weights/best.onnx"
 SOURCE = "/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/RBS-167302-logsim-60/images"
@@ -16,9 +17,16 @@ SOURCE = "/pcpt/pcpt/project/atlb/vla/ultralytics/case_data_mau/RBS-167302-logsi
 
 def set_custom_class_colors():
     class_color_map = {
-        0: (255, 0, 0), 1: (0, 255, 0), 2: (255, 255, 0),
-        3: (0, 0, 0), 4: (0, 0, 255), 5: (128, 0, 128),
-        6: (255, 165, 0), 7: (0, 255, 255), 8: (255, 192, 203), 9: (128, 128, 128),
+        0: (255, 0, 0),
+        1: (0, 255, 0),
+        2: (255, 255, 0),
+        3: (0, 0, 0),
+        4: (0, 0, 255),
+        5: (128, 0, 128),
+        6: (255, 165, 0),
+        7: (0, 255, 255),
+        8: (255, 192, 203),
+        9: (128, 128, 128),
     }
     for cls_id, rgb in class_color_map.items():
         if 0 <= cls_id < len(colors.palette):
@@ -26,10 +34,10 @@ def set_custom_class_colors():
 
 
 def label_frame(img, text):
-    """在帧左上角加文件名标注（带半透明黑底）。"""
+    """在帧左上角加文件名标注（带半透明黑底）。."""
     img = img.copy()
     font, scale, thick = cv2.FONT_HERSHEY_SIMPLEX, 1.2, 2
-    (tw, th), bl = cv2.getTextSize(text, font, scale, thick)
+    (tw, th), _bl = cv2.getTextSize(text, font, scale, thick)
     cv2.rectangle(img, (0, 0), (tw + 20, th + 20), (0, 0, 0), -1)
     cv2.putText(img, text, (10, th + 10), font, scale, (255, 255, 255), thick, cv2.LINE_AA)
     return img
@@ -59,10 +67,7 @@ def main():
             show_labels=True,
         )
         # 该 batch 内 2 帧各自加文件名后水平拼接成一行
-        frames = [
-            label_frame(r.plot(line_width=4), f"batch{i + 1} | {p.name}")
-            for r, p in zip(results, batch)
-        ]
+        frames = [label_frame(r.plot(line_width=4), f"batch{i + 1} | {p.name}") for r, p in zip(results, batch)]
         batch_rows.append(np.hstack(frames))
 
     # 两个 batch 上下排列
