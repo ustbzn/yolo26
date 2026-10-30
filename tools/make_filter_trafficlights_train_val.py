@@ -12,15 +12,17 @@ Example:
       --val-ratio 0.1
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
 import random
 import re
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
-from typing import DefaultDict, Dict, Iterable, List, NamedTuple, Sequence, Set, Tuple
+from typing import Iterable, NamedTuple, Sequence
 from urllib.parse import urlparse
 
 
@@ -66,7 +68,7 @@ def label_path_from_image(image_path: str) -> Path:
     return Path(os.path.splitext(label_path)[0] + ".txt")
 
 
-def load_index(index_path: Path) -> Dict[str, str]:
+def load_index(index_path: Path) -> dict[str, str]:
     with index_path.open("r", encoding="utf-8") as f:
         index = json.load(f)
     if not isinstance(index, dict):
@@ -74,7 +76,7 @@ def load_index(index_path: Path) -> Dict[str, str]:
     return {str(k): str(v) for k, v in index.items()}
 
 
-def read_labelme(path: Path) -> Tuple[str, List[str]]:
+def read_labelme(path: Path) -> tuple[str, list[str]]:
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -95,7 +97,7 @@ def read_labelme(path: Path) -> Tuple[str, List[str]]:
     return image_path, labels
 
 
-def read_labelme_fast(path: Path) -> Tuple[str, List[str]]:
+def read_labelme_fast(path: Path) -> tuple[str, list[str]]:
     """Extract imagePath and labels without parsing the large imageData string."""
     chunks = []
     with path.open("r", encoding="utf-8", errors="replace") as f:
@@ -112,27 +114,24 @@ def read_labelme_fast(path: Path) -> Tuple[str, List[str]]:
     prefix = "".join(chunks)
     image_match = re.search(r'"imagePath"\s*:\s*"((?:\\.|[^"\\])*)"', prefix)
     image_path = json.loads(f'"{image_match.group(1)}"') if image_match else ""
-    labels = [
-        json.loads(f'"{match}"')
-        for match in re.findall(r'"label"\s*:\s*"((?:\\.|[^"\\])*)"', prefix)
-    ]
+    labels = [json.loads(f'"{match}"') for match in re.findall(r'"label"\s*:\s*"((?:\\.|[^"\\])*)"', prefix)]
     return image_path, labels
 
 
 def collect_samples(
     data_dir: Path,
-    index: Dict[str, str],
+    index: dict[str, str],
     target_label: str,
     max_json: int,
     fast_extract: bool,
     show_progress: bool,
-) -> Tuple[List[Sample], Counter, Counter, Counter, List[Tuple[Path, str]], List[Path], int]:
-    samples: List[Sample] = []
+) -> tuple[list[Sample], Counter, Counter, Counter, list[tuple[Path, str]], list[Path], int]:
+    samples: list[Sample] = []
     label_counter: Counter = Counter()
     image_group_counter: Counter = Counter()
     selected_group_counter: Counter = Counter()
-    missing_index: List[Tuple[Path, str]] = []
-    bad_json: List[Path] = []
+    missing_index: list[tuple[Path, str]] = []
+    bad_json: list[Path] = []
 
     seen_resolved = set()
     json_paths = list(iter_json_paths(data_dir))
@@ -213,10 +212,10 @@ def has_gt_box(label_path: Path) -> bool:
 
 def filter_samples_with_gt(
     samples: Sequence[Sample],
-) -> Tuple[List[Sample], List[Tuple[Sample, Path]], List[Tuple[Sample, Path]]]:
-    kept: List[Sample] = []
-    missing_labels: List[Tuple[Sample, Path]] = []
-    empty_labels: List[Tuple[Sample, Path]] = []
+) -> tuple[list[Sample], list[tuple[Sample, Path]], list[tuple[Sample, Path]]]:
+    kept: list[Sample] = []
+    missing_labels: list[tuple[Sample, Path]] = []
+    empty_labels: list[tuple[Sample, Path]] = []
 
     for sample in samples:
         label_path = label_path_from_image(sample.resolved_path)
@@ -231,14 +230,14 @@ def filter_samples_with_gt(
     return kept, missing_labels, empty_labels
 
 
-def select_val_indices_interleaved(n: int, val_n: int) -> Set[int]:
+def select_val_indices_interleaved(n: int, val_n: int) -> set[int]:
     """Pick validation indices evenly across a sorted sequence."""
     if val_n <= 0:
         return set()
     if val_n >= n:
         return set(range(n))
 
-    idxs: Set[int] = set()
+    idxs: set[int] = set()
     step = n / val_n
     for k in range(val_n):
         idx = int((k + 0.5) * step)
@@ -254,10 +253,10 @@ def select_val_indices_interleaved(n: int, val_n: int) -> Set[int]:
 
 
 def allocate_group_val_counts(
-    by_group: Dict[str, List[Sample]],
+    by_group: dict[str, list[Sample]],
     val_count: int,
     seed: int,
-) -> Dict[str, int]:
+) -> dict[str, int]:
     """Allocate exact validation count proportionally to groups."""
     total = sum(len(group_samples) for group_samples in by_group.values())
     if val_count <= 0:
@@ -265,8 +264,8 @@ def allocate_group_val_counts(
     if val_count >= total:
         return {group: len(group_samples) for group, group_samples in by_group.items()}
 
-    counts: Dict[str, int] = {}
-    remainders: List[Tuple[float, float, str]] = []
+    counts: dict[str, int] = {}
+    remainders: list[tuple[float, float, str]] = []
     rng = random.Random(seed)
     for group, group_samples in by_group.items():
         exact = len(group_samples) * val_count / total
@@ -281,7 +280,7 @@ def allocate_group_val_counts(
     return counts
 
 
-def split_shuffled(samples: Sequence[Sample], val_ratio: float, seed: int) -> Tuple[List[str], List[str], List[str]]:
+def split_shuffled(samples: Sequence[Sample], val_ratio: float, seed: int) -> tuple[list[str], list[str], list[str]]:
     total_paths = [sample.resolved_path for sample in samples]
     if not total_paths:
         return [], [], []
@@ -290,7 +289,7 @@ def split_shuffled(samples: Sequence[Sample], val_ratio: float, seed: int) -> Tu
     random.Random(seed).shuffle(shuffled)
 
     ratio = min(max(val_ratio, 0.0), 1.0)
-    val_count = int(round(len(shuffled) * ratio))
+    val_count = round(len(shuffled) * ratio)
     if len(shuffled) > 1 and ratio > 0:
         val_count = max(1, val_count)
     val_count = min(val_count, len(shuffled))
