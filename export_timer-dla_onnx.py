@@ -15,23 +15,21 @@ def main():
     model = YOLO(str(WEIGHTS))
 
     onnx_path = model.export(
-        format='onnx',
+        format="onnx",
         # imgsz=[736, 1280],   # 与训练一致
         # imgsz=[384, 640],   # 与训练一致
-        imgsz=[480, 800],   # 与训练一致
-        
-        
-        opset=17,            # TensorRT 8.6 / DLA 3.14 支持到 opset 17
-        batch=2,             # DLA 部署常用静态 batch
-        dynamic=False,       # DLA 需固定输入尺寸
-        simplify=True,       # 简化计算图
-        half=False,          # FP 由 TensorRT 构建 engine 时再定 (INT8/FP16)
-        device='cpu',        # 导出在 CPU 上做即可
+        imgsz=[480, 800],  # 与训练一致
+        opset=17,  # TensorRT 8.6 / DLA 3.14 支持到 opset 17
+        batch=2,  # DLA 部署常用静态 batch
+        dynamic=False,  # DLA 需固定输入尺寸
+        simplify=True,  # 简化计算图
+        half=False,  # FP 由 TensorRT 构建 engine 时再定 (INT8/FP16)
+        device="cpu",  # 导出在 CPU 上做即可
     )
-    print(f'ONNX exported to: {onnx_path}')
+    print(f"ONNX exported to: {onnx_path}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
 
 
