@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI 标注错误查看器
+AI 标注错误查看器.
 =================
 读取 ai_annotation_validator.py 生成的 JSONL 日志，
 在浏览器中逐帧展示被拒绝的图像、标注框及 AI 的逐框分析原因。
@@ -29,38 +29,44 @@ AI 标注错误查看器
   数字 + 回车       跳转到指定帧
 """
 
-import os, io, base64, json, argparse
+import argparse
+import base64
+import io
+import json
+import os
 from pathlib import Path
-from flask import Flask, request, jsonify
-from PIL import Image, ImageDraw, ImageFont
+
+from flask import Flask, jsonify
+from PIL import Image, ImageDraw
 
 # ──────────────────────────────────────────────────────────────
 # 配置
 # ──────────────────────────────────────────────────────────────
-SCRIPT_DIR   = Path(__file__).parent
-DEFAULT_LOG  = str(SCRIPT_DIR / "sample_300_validated.jsonl")
+SCRIPT_DIR = Path(__file__).parent
+DEFAULT_LOG = str(SCRIPT_DIR / "sample_300_validated.jsonl")
 
 CLASS_COLORS = {
-    0: (220, 50,  50),
-    1: (50,  200, 50),
-    2: (220, 180,  0),
+    0: (220, 50, 50),
+    1: (50, 200, 50),
+    2: (220, 180, 0),
     3: (130, 130, 130),
-    4: (50,  150, 255),
-    5: (200,  50, 200),
+    4: (50, 150, 255),
+    5: (200, 50, 200),
 }
 
 # 框状态颜色
-COLOR_CORRECT   = (60,  200,  60)   # 绿 — 正确
-COLOR_WRONG     = (220,  50,  50)   # 红 — 错误
-COLOR_AMBIGUOUS = (240, 160,  30)   # 橙 — 歧义
+COLOR_CORRECT = (60, 200, 60)  # 绿 — 正确
+COLOR_WRONG = (220, 50, 50)  # 红 — 错误
+COLOR_AMBIGUOUS = (240, 160, 30)  # 橙 — 歧义
 
 
 # ──────────────────────────────────────────────────────────────
 # 数据加载
 # ──────────────────────────────────────────────────────────────
 
+
 def load_records(log_path: str, filter_mode: str):
-    """从 JSONL 加载记录，按 filter_mode 过滤。"""
+    """从 JSONL 加载记录，按 filter_mode 过滤。."""
     records = []
     if not os.path.exists(log_path):
         print(f"[WARN] 日志文件不存在: {log_path}")
@@ -76,7 +82,7 @@ def load_records(log_path: str, filter_mode: str):
             except json.JSONDecodeError:
                 continue
 
-            verdict   = rec.get("verdict", "accept")
+            verdict = rec.get("verdict", "accept")
             has_ambig = rec.get("has_ambiguous", False)
 
             if filter_mode == "reject":
@@ -88,9 +94,8 @@ def load_records(log_path: str, filter_mode: str):
             elif filter_mode == "ambiguous":
                 if not (verdict == "reject" and has_ambig):
                     continue
-            elif filter_mode == "wrong":
-                if not (verdict == "reject" and not has_ambig):
-                    continue
+            elif filter_mode == "wrong" and not (verdict == "reject" and not has_ambig):
+                continue
             # filter_mode == "all" → 全收
 
             records.append(rec)
@@ -103,27 +108,21 @@ def load_records(log_path: str, filter_mode: str):
 # 图像渲染
 # ──────────────────────────────────────────────────────────────
 
+
 def render_frame(rec: dict, max_w=1440, max_h=900):
-    """
-    渲染带标注框的图像：
-      - 正确框 → 绿色
-      - 错误框 → 红色
-      - 歧义框 → 橙色
-    返回 base64 JPEG 字符串。
+    """渲染带标注框的图像： - 正确框 → 绿色 - 错误框 → 红色 - 歧义框 → 橙色 返回 base64 JPEG 字符串。.
     """
     img_path = rec.get("img_path", "")
-    results  = {r["id"]: r for r in rec.get("results", [])}
-    boxes    = rec.get("boxes", [])
+    results = {r["id"]: r for r in rec.get("results", [])}
+    boxes = rec.get("boxes", [])
 
     # 加载图像（不存在则黑底提示）
     if os.path.exists(img_path):
         img = Image.open(img_path).convert("RGB")
     else:
         img = Image.new("RGB", (960, 540), (20, 20, 20))
-        ImageDraw.Draw(img).text(
-            (20, 250), f"图像不存在:\n{img_path}", fill=(255, 80, 80)
-        )
-    orig_w, orig_h = img.size
+        ImageDraw.Draw(img).text((20, 250), f"图像不存在:\n{img_path}", fill=(255, 80, 80))
+    orig_w, _orig_h = img.size
     img.thumbnail((max_w, max_h), Image.LANCZOS)
     disp_w, disp_h = img.size
     scale = disp_w / orig_w
@@ -131,10 +130,10 @@ def render_frame(rec: dict, max_w=1440, max_h=900):
     draw = ImageDraw.Draw(img)
 
     for i, box in enumerate(boxes):
-        box_id  = i + 1
-        res     = results.get(box_id, {})
+        box_id = i + 1
+        res = results.get(box_id, {})
         correct = res.get("is_correct", True)
-        ambig   = res.get("is_ambiguous", False)
+        ambig = res.get("is_ambiguous", False)
 
         if correct:
             color = COLOR_CORRECT
@@ -147,8 +146,8 @@ def render_frame(rec: dict, max_w=1440, max_h=900):
         sy1 = int(box["y1"] * scale)
         sx2 = int(box["x2"] * scale)
         sy2 = int(box["y2"] * scale)
-        w   = box.get("w", sx2 - sx1)
-        h   = box.get("h", sy2 - sy1)
+        w = box.get("w", sx2 - sx1)
+        h = box.get("h", sy2 - sy1)
 
         # 框线（错误加粗）
         lw = 3 if not correct else 2
@@ -173,7 +172,7 @@ def render_frame(rec: dict, max_w=1440, max_h=900):
 
 app = Flask(__name__)
 RECORDS: list = []
-_log_path:    str = ""
+_log_path: str = ""
 _filter_mode: str = "reject"
 
 
@@ -184,7 +183,7 @@ def index():
 
 @app.route("/api/reload")
 def api_reload():
-    """重新读取 JSONL 文件，返回最新记录数。"""
+    """重新读取 JSONL 文件，返回最新记录数。."""
     global RECORDS
     RECORDS = load_records(_log_path, _filter_mode)
     return jsonify({"total": len(RECORDS), "reloaded": True})
@@ -205,41 +204,45 @@ def api_frame(idx: int):
 
     # 构造逐框分析列表
     results_map = {r["id"]: r for r in rec.get("results", [])}
-    boxes_info  = []
+    boxes_info = []
     for i, box in enumerate(rec.get("boxes", [])):
         bid = i + 1
         res = results_map.get(bid, {})
         correct = res.get("is_correct", True)
-        ambig   = res.get("is_ambiguous", False)
+        ambig = res.get("is_ambiguous", False)
         if correct:
             status = "correct"
         elif ambig:
             status = "ambiguous"
         else:
             status = "wrong"
-        boxes_info.append({
-            "id":     bid,
-            "name":   box.get("name", "?"),
-            "w":      box.get("w", 0),
-            "h":      box.get("h", 0),
-            "status": status,
-            "reason": res.get("reason", ""),
-        })
+        boxes_info.append(
+            {
+                "id": bid,
+                "name": box.get("name", "?"),
+                "w": box.get("w", 0),
+                "h": box.get("h", 0),
+                "status": status,
+                "reason": res.get("reason", ""),
+            }
+        )
 
-    return jsonify({
-        "idx":          idx,
-        "total":        len(RECORDS),
-        "img_path":     rec.get("img_path", ""),
-        "verdict":      rec.get("verdict", ""),
-        "has_ambiguous":rec.get("has_ambiguous", False),
-        "reason":       rec.get("reason", ""),
-        "timestamp":    rec.get("timestamp", ""),
-        "img_size":     rec.get("img_size", []),
-        "img_b64":      img_b64,
-        "disp_w":       disp_w,
-        "disp_h":       disp_h,
-        "boxes":        boxes_info,
-    })
+    return jsonify(
+        {
+            "idx": idx,
+            "total": len(RECORDS),
+            "img_path": rec.get("img_path", ""),
+            "verdict": rec.get("verdict", ""),
+            "has_ambiguous": rec.get("has_ambiguous", False),
+            "reason": rec.get("reason", ""),
+            "timestamp": rec.get("timestamp", ""),
+            "img_size": rec.get("img_size", []),
+            "img_b64": img_b64,
+            "disp_w": disp_w,
+            "disp_h": disp_h,
+            "boxes": boxes_info,
+        }
+    )
 
 
 # ──────────────────────────────────────────────────────────────
@@ -526,21 +529,24 @@ init();
 # 入口
 # ──────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="AI 标注错误查看器 — 仅审核 RedLight / BlackLight 两类",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--log",    default=DEFAULT_LOG,
-                        help="JSONL 日志文件路径（ai_annotation_validator.py 生成）")
-    parser.add_argument("--filter", default="reject",
-                        choices=["reject", "accept", "wrong", "all"],
-                        help="过滤模式: reject=全部拒绝(默认), accept=全部接受, wrong=仅明确错误, all=全部")
-    parser.add_argument("--port",   type=int, default=8888, help="Web 端口（默认 8888）")
+    parser.add_argument("--log", default=DEFAULT_LOG, help="JSONL 日志文件路径（ai_annotation_validator.py 生成）")
+    parser.add_argument(
+        "--filter",
+        default="reject",
+        choices=["reject", "accept", "wrong", "all"],
+        help="过滤模式: reject=全部拒绝(默认), accept=全部接受, wrong=仅明确错误, all=全部",
+    )
+    parser.add_argument("--port", type=int, default=8888, help="Web 端口（默认 8888）")
     args = parser.parse_args()
 
     global RECORDS, _log_path, _filter_mode
-    _log_path    = args.log
+    _log_path = args.log
     _filter_mode = args.filter
     RECORDS = load_records(args.log, args.filter)
 
@@ -550,7 +556,7 @@ def main():
     host = "0.0.0.0"
     print(f"\n[INFO] 共 {len(RECORDS)} 条记录  (filter={args.filter})")
     print(f"[INFO] 浏览器访问: http://<server-ip>:{args.port}")
-    print(f"[INFO] 快捷键: ← / → 或 A / D 切换帧\n")
+    print("[INFO] 快捷键: ← / → 或 A / D 切换帧\n")
     app.run(host=host, port=args.port, debug=False, threaded=True)
 
 

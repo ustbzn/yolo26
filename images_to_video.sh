@@ -26,9 +26,9 @@ if [[ ! -d "${INPUT_DIR}" ]]; then
   exit 1
 fi
 
-if command -v python3 >/dev/null 2>&1; then
+if command -v python3 > /dev/null 2>&1; then
   PY_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
+elif command -v python > /dev/null 2>&1; then
   PY_BIN="python"
 else
   echo "Error: python/python3 not found in PATH" >&2
