@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Convert an image sequence in a folder to a video file."""
 
+from __future__ import annotations
+
 import argparse
 import re
 import sys
 from pathlib import Path
-from typing import Tuple
 
 import cv2
 
@@ -25,7 +26,7 @@ def parse_size(size_text: str):
     return w, h
 
 
-def collect_images(input_dir: Path, exts: Tuple[str, ...], recursive: bool):
+def collect_images(input_dir: Path, exts: tuple[str, ...], recursive: bool):
     pattern = "**/*" if recursive else "*"
     files = [p for p in input_dir.glob(pattern) if p.is_file() and p.suffix.lower() in exts]
     return sorted(files, key=natural_key)
