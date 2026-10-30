@@ -1,5 +1,5 @@
 """
-Ground Truth Annotation Viewer  —  多人协同 Web UI
+Ground Truth Annotation Viewer  —  多人协同 Web UI.
 ===================================================
 用法:  python tools/gt_viewer.py [--port 8888]
 浏览器: http://<server-ip>:8888
@@ -12,12 +12,21 @@ Ground Truth Annotation Viewer  —  多人协同 Web UI
   Delete   删除选中框
 """
 
-import os, io, base64, argparse, json, time, threading, sys
+from __future__ import annotations
+
+import argparse
+import base64
+import io
+import json
+import os
+import sys
+import threading
+import time
 from functools import lru_cache
-from flask import Flask, request, jsonify
-from PIL import Image, ImageDraw
 from pathlib import Path
-from typing import List, Tuple
+
+from flask import Flask, jsonify, request
+from PIL import Image, ImageDraw
 
 # ──────────────────────────────────────────────────────────────
 # 数据集配置
@@ -26,31 +35,47 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CASE_DATA_ROOT = ROOT / "case_data_mau"
 # 参考 infer.py：10 类 timer 模型，先用 yaml 配置建模型再 load 权重
 DEFAULT_MODEL_CFG = ROOT / "ultralytics/cfg/models/26/yolo26m-timer.yaml"
-DEFAULT_WEIGHTS = Path("/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer/3600frames_lr1e-45/weights/best.pt")
+DEFAULT_WEIGHTS = Path(
+    "/pcpt/pcpt/project/atlb/vla/ultralytics/runs/detect/trafficlights_logsim_finetune_timer/3600frames_lr1e-45/weights/best.pt"
+)
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 # TRAIN_TXT = "/pcpt/pcpt/data/2D-Det/COS/data_clean.txt"
 DEFAULT_TRAIN_TXT = "/pcpt/pcpt/data/2D-Det/COS/2026_Q2/0418/2026_Q2_0418_train_paths.txt"
-DEFAULT_VAL_TXT   = ""
+DEFAULT_VAL_TXT = ""
 TRAIN_TXT = DEFAULT_TRAIN_TXT
-VAL_TXT   = DEFAULT_VAL_TXT
+VAL_TXT = DEFAULT_VAL_TXT
 
 CLASS_NAMES = {
-    0: "RedLight", 1: "GreenLight", 2: "YellowLight",
-    3: "BlackLight", 4: "MovingTrafficLight", 5: "MultiSemanticTrafficLights",
-    6: "BlackTimingCard", 7: "GreenTimingCard", 8: "RedTimingCard",
+    0: "RedLight",
+    1: "GreenLight",
+    2: "YellowLight",
+    3: "BlackLight",
+    4: "MovingTrafficLight",
+    5: "MultiSemanticTrafficLights",
+    6: "BlackTimingCard",
+    7: "GreenTimingCard",
+    8: "RedTimingCard",
     9: "YellowTimingCard",
 }
 CLASS_COLORS = {
-    0: (220,50,50), 1: (50,200,50), 2: (220,180,0),
-    3: (130,130,130), 4: (50,150,255), 5: (200,50,200),
-    6: (80,80,80), 7: (0,160,90), 8: (180,40,40), 9: (240,200,40),
+    0: (220, 50, 50),
+    1: (50, 200, 50),
+    2: (220, 180, 0),
+    3: (130, 130, 130),
+    4: (50, 150, 255),
+    5: (200, 50, 200),
+    6: (80, 80, 80),
+    7: (0, 160, 90),
+    8: (180, 40, 40),
+    9: (240, 200, 40),
 }
-USER_COLORS = ["#4fc3f7","#81c784","#ffb74d","#f06292","#ce93d8","#80cbc4","#fff176","#ffcc80"]
+USER_COLORS = ["#4fc3f7", "#81c784", "#ffb74d", "#f06292", "#ce93d8", "#80cbc4", "#fff176", "#ffcc80"]
 
 PROGRESS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gt_viewer_progress.json")
 DEFAULT_ACCEPTED_TXT = str(ROOT / "dataset/accepted.txt")
 RESTORED_USER = "accepted.txt"
+
 
 # ──────────────────────────────────────────────────────────────
 # 工具函数
@@ -59,18 +84,22 @@ def get_label_path(img_path: str) -> str:
     p = img_path.replace("/images/", "/labels_10cls/")
     return os.path.splitext(p)[0] + ".txt"
 
-def load_txt(path: str) -> List[str]:
+
+def load_txt(path: str) -> list[str]:
     if not os.path.exists(path):
-        print(f"[WARN] 文件不存在: {path}"); return []
+        print(f"[WARN] 文件不存在: {path}")
+        return []
     with open(path) as f:
         return [l.strip() for l in f if l.strip()]
 
+
 def normalize_path(path: str) -> str:
-    """统一为绝对路径，避免数据插入导致下标进度漂移。"""
+    """统一为绝对路径，避免数据插入导致下标进度漂移。."""
     return str(Path(path).expanduser().resolve())
 
-def discover_image_paths(data_root: str) -> List[str]:
-    """扫描 case 数据根目录下 images 目录中的图像。"""
+
+def discover_image_paths(data_root: str) -> list[str]:
+    """扫描 case 数据根目录下 images 目录中的图像。."""
     root = Path(data_root).expanduser().resolve()
     if not root.exists():
         print(f"[WARN] 数据目录不存在: {root}")
@@ -81,16 +110,18 @@ def discover_image_paths(data_root: str) -> List[str]:
             paths.append(str(p))
     return sorted(paths)
 
+
 def source_name(img_path: str) -> str:
-    """返回图像所属 case 名称；普通 txt 数据源保持 train/val。"""
+    """返回图像所属 case 名称；普通 txt 数据源保持 train/val。."""
     p = Path(img_path)
     if p.parent.name == "images" and p.parent.parent.name:
         return p.parent.parent.name
     return "data"
 
+
 def run_model_infer(
     weights: str,
-    image_paths: List[str],
+    image_paths: list[str],
     model_cfg: str = "",
     imgsz: int = 1600,
     conf: float = 0.3,
@@ -99,10 +130,9 @@ def run_model_infer(
     batch: int = 16,
     overwrite: bool = False,
 ) -> None:
-    """使用 Ultralytics 模型推理并写入 labels_10cls YOLO 标注。
+    """使用 Ultralytics 模型推理并写入 labels_10cls YOLO 标注。.
 
-    参考 infer.py：若提供 model_cfg，则先用 yaml 配置构建模型再 load 权重，
-    以保证 10 类 timer 模型结构正确。
+    参考 infer.py：若提供 model_cfg，则先用 yaml 配置构建模型再 load 权重， 以保证 10 类 timer 模型结构正确。
     """
     todo = []
     for img_path in image_paths:
@@ -126,7 +156,7 @@ def run_model_infer(
     done = 0
     batch = max(1, int(batch))
     for start in range(0, len(todo), batch):
-        chunk = todo[start:start + batch]
+        chunk = todo[start : start + batch]
         results = model.predict(
             source=chunk,
             imgsz=imgsz,
@@ -145,18 +175,21 @@ def run_model_infer(
                 if boxes is not None and len(boxes) > 0:
                     cls_ids = boxes.cls.detach().cpu().numpy().astype(int)
                     xywhn = boxes.xywhn.detach().cpu().numpy()
-                    for cls_id, (cx, cy, bw, bh) in zip(cls_ids, xywhn):
-                        f.write(f"{cls_id} {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}\n")
+                    f.writelines(
+                        f"{cls_id} {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}\n"
+                        for cls_id, (cx, cy, bw, bh) in zip(cls_ids, xywhn)
+                    )
             done += 1
         if done % 50 == 0 or done == len(todo):
             print(f"[INFO] 推理写标注进度: {done}/{len(todo)}")
 
+
 @lru_cache(maxsize=30)
-def render_image(img_path: str) -> Tuple[str, int, int, int, int]:
-    """返回原始图像（不画框）+ 原始尺寸 + 显示尺寸"""
+def render_image(img_path: str) -> tuple[str, int, int, int, int]:
+    """返回原始图像（不画框）+ 原始尺寸 + 显示尺寸."""
     if not os.path.exists(img_path):
         img = Image.new("RGB", (640, 360), (30, 30, 30))
-        ImageDraw.Draw(img).text((20, 160), f"图像不存在:\n{img_path}", fill=(255,80,80))
+        ImageDraw.Draw(img).text((20, 160), f"图像不存在:\n{img_path}", fill=(255, 80, 80))
     else:
         img = Image.open(img_path).convert("RGB")
     orig_w, orig_h = img.size
@@ -164,49 +197,61 @@ def render_image(img_path: str) -> Tuple[str, int, int, int, int]:
     img.save(buf, format="JPEG", quality=70)
     return base64.b64encode(buf.getvalue()).decode(), orig_w, orig_h, orig_w, orig_h
 
+
 def read_boxes(label_path: str, img_w: int, img_h: int) -> list:
-    """读取 YOLO 标注，返回像素坐标 + 归一化坐标"""
+    """读取 YOLO 标注，返回像素坐标 + 归一化坐标."""
     boxes = []
     if not os.path.exists(label_path):
         return boxes
     with open(label_path) as f:
         for line in f:
             parts = line.strip().split()
-            if len(parts) < 5: continue
+            if len(parts) < 5:
+                continue
             cls_id = int(parts[0])
-            cx,cy,bw,bh = float(parts[1]),float(parts[2]),float(parts[3]),float(parts[4])
-            x1 = int((cx-bw/2)*img_w)
-            y1 = int((cy-bh/2)*img_h)
-            x2 = int((cx+bw/2)*img_w)
-            y2 = int((cy+bh/2)*img_h)
-            color = CLASS_COLORS.get(cls_id,(255,255,255))
-            name  = CLASS_NAMES.get(cls_id, f"cls{cls_id}")
-            boxes.append({
-                "cls_id": cls_id, "name": name,
-                "color": "#%02x%02x%02x" % color,
-                "cx": cx, "cy": cy, "bw": bw, "bh": bh,
-                "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-            })
+            cx, cy, bw, bh = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
+            x1 = int((cx - bw / 2) * img_w)
+            y1 = int((cy - bh / 2) * img_h)
+            x2 = int((cx + bw / 2) * img_w)
+            y2 = int((cy + bh / 2) * img_h)
+            color = CLASS_COLORS.get(cls_id, (255, 255, 255))
+            name = CLASS_NAMES.get(cls_id, f"cls{cls_id}")
+            boxes.append(
+                {
+                    "cls_id": cls_id,
+                    "name": name,
+                    "color": "#{:02x}{:02x}{:02x}".format(*color),
+                    "cx": cx,
+                    "cy": cy,
+                    "bw": bw,
+                    "bh": bh,
+                    "x1": x1,
+                    "y1": y1,
+                    "x2": x2,
+                    "y2": y2,
+                }
+            )
     return boxes
+
 
 # ──────────────────────────────────────────────────────────────
 # 全局状态
 # ──────────────────────────────────────────────────────────────
-train_paths: List[str] = []
-val_paths: List[str] = []
-records: List[Tuple[str,str]] = []
+train_paths: list[str] = []
+val_paths: list[str] = []
+records: list[tuple[str, str]] = []
 record_index: dict = {}
 total = 0
 # status: {user_name: {img_path(str): {"status": "accept"/"reject", "ts": float}}}
 status: dict = {}
-users:  dict = {}   # name -> {color, idx, last_seen}
-lock   = threading.Lock()
+users: dict = {}  # name -> {color, idx, last_seen}
+lock = threading.Lock()
 
-def configure_dataset(train_txt: str = DEFAULT_TRAIN_TXT,
-                      val_txt: str = DEFAULT_VAL_TXT,
-                      data_root: str = "",
-                      progress_file: str = ""):
-    """初始化数据列表；data_root 优先，未传则沿用 train/val txt。"""
+
+def configure_dataset(
+    train_txt: str = DEFAULT_TRAIN_TXT, val_txt: str = DEFAULT_VAL_TXT, data_root: str = "", progress_file: str = ""
+):
+    """初始化数据列表；data_root 优先，未传则沿用 train/val txt。."""
     global TRAIN_TXT, VAL_TXT, PROGRESS_FILE, train_paths, val_paths, records, record_index, total, status, users
     TRAIN_TXT = train_txt
     VAL_TXT = val_txt
@@ -229,17 +274,17 @@ def configure_dataset(train_txt: str = DEFAULT_TRAIN_TXT,
     load_progress()
     print(f"[INFO] 加载完成: train={len(train_paths)}, val={len(val_paths)}, total={total}")
 
+
 def _user_stats(user_name: str):
-    """返回某用户的 accepted/rejected/reviewed 数"""
+    """返回某用户的 accepted/rejected/reviewed 数."""
     ustat = status.get(user_name, {})
-    accepted = sum(1 for p, v in ustat.items()
-                   if p in record_index and v["status"] == "accept")
-    rejected = sum(1 for p, v in ustat.items()
-                   if p in record_index and v["status"] == "reject")
+    accepted = sum(1 for p, v in ustat.items() if p in record_index and v["status"] == "accept")
+    rejected = sum(1 for p, v in ustat.items() if p in record_index and v["status"] == "reject")
     return accepted, rejected, accepted + rejected
 
+
 def _global_stats():
-    """返回全局（所有用户合并，同一帧多人标了取最新那条）的统计"""
+    """返回全局（所有用户合并，同一帧多人标了取最新那条）的统计."""
     merged = {}  # img_path -> {status, ts}
     for ustat in status.values():
         for img_path, v in ustat.items():
@@ -251,8 +296,9 @@ def _global_stats():
     rejected = sum(1 for v in merged.values() if v["status"] == "reject")
     return accepted, rejected, accepted + rejected
 
+
 def _path_from_progress_key(key: str) -> str:
-    """兼容旧下标进度；新格式直接使用图像绝对路径。"""
+    """兼容旧下标进度；新格式直接使用图像绝对路径。."""
     if isinstance(key, int):
         key = str(key)
     if key.isdigit():
@@ -261,8 +307,9 @@ def _path_from_progress_key(key: str) -> str:
     img_path = normalize_path(key)
     return img_path if img_path in record_index else ""
 
+
 def restore_accepted_txt_progress(target_users=None):
-    """按 accepted.txt 恢复已验收路径，避免旧 idx 进度被新增数据挤乱。"""
+    """按 accepted.txt 恢复已验收路径，避免旧 idx 进度被新增数据挤乱。."""
     accepted_paths = load_txt(DEFAULT_ACCEPTED_TXT)
     if not accepted_paths:
         return
@@ -288,6 +335,7 @@ def restore_accepted_txt_progress(target_users=None):
                 restored += 1
     print(f"[INFO] 按 accepted.txt 恢复进度: users={users_to_restore}, paths={len(accepted_paths)}, updated={restored}")
 
+
 def load_progress():
     global status
     raw_users = []
@@ -295,12 +343,13 @@ def load_progress():
         restore_accepted_txt_progress()
         return
     try:
-        with open(PROGRESS_FILE) as f: data = json.load(f)
+        with open(PROGRESS_FILE) as f:
+            data = json.load(f)
         raw = data.get("status", {})
         raw_users = list(raw.keys())
         # 兼容旧格式：{str(idx): {status,user,ts}}  →  迁移到新格式
         # 新格式：{user_name: {img_path: {status,ts}}}
-        if raw and all(k.isdigit() for k in raw.keys()):
+        if raw and all(k.isdigit() for k in raw):
             # 旧格式，迁移
             for k, v in raw.items():
                 if isinstance(v, dict) and "user" in v:
@@ -308,13 +357,13 @@ def load_progress():
                     img_path = _path_from_progress_key(k)
                     if img_path:
                         status.setdefault(uname, {})[img_path] = {"status": v["status"], "ts": v.get("ts", 0.0)}
-            print(f"[INFO] 已从旧格式迁移进度")
+            print("[INFO] 已从旧格式迁移进度")
         else:
             # 用户分组格式；key 可能是旧 idx，也可能是新绝对路径
             for uname, ustat in raw.items():
                 if not isinstance(ustat, dict):
                     continue
-                digit_keys = [k for k in ustat.keys() if str(k).isdigit()]
+                digit_keys = [k for k in ustat if str(k).isdigit()]
                 if digit_keys and len(digit_keys) == len(ustat) and os.path.exists(DEFAULT_ACCEPTED_TXT):
                     # 纯 idx 进度在数据前插后不可信，交给 accepted.txt 按绝对路径恢复。
                     status.setdefault(uname, {})
@@ -322,9 +371,7 @@ def load_progress():
                 for k, v in ustat.items():
                     img_path = _path_from_progress_key(str(k))
                     if img_path and isinstance(v, dict) and v.get("status") in ("accept", "reject"):
-                        status.setdefault(uname, {})[img_path] = {
-                            "status": v["status"], "ts": v.get("ts", 0.0)
-                        }
+                        status.setdefault(uname, {})[img_path] = {"status": v["status"], "ts": v.get("ts", 0.0)}
         restore_accepted_txt_progress(raw_users)
         total_frames = sum(len(u) for u in status.values())
         print(f"[INFO] 恢复进度: {len(status)} 位用户，共标注 {total_frames} 帧次")
@@ -332,66 +379,86 @@ def load_progress():
         print(f"[WARN] 恢复进度失败: {e}")
         restore_accepted_txt_progress(raw_users)
 
+
 def save_progress():
     try:
-        serial = {uname: {p: v for p, v in ustat.items() if p in record_index}
-                  for uname, ustat in status.items()}
+        serial = {uname: {p: v for p, v in ustat.items() if p in record_index} for uname, ustat in status.items()}
         with open(PROGRESS_FILE, "w") as f:
             json.dump({"status": serial}, f, ensure_ascii=False)
     except Exception as e:
         print(f"[WARN] 进度写盘失败: {e}")
 
+
 def next_unreviewed(from_idx: int, user_name: str = "") -> int:
-    """找该用户下一个未审帧；若 user_name 为空则看全局"""
+    """找该用户下一个未审帧；若 user_name 为空则看全局."""
     if user_name:
         ustat = status.get(user_name, {})
         for i in range(from_idx, total):
-            if records[i][0] not in ustat: return i
+            if records[i][0] not in ustat:
+                return i
     else:
         # 全局：所有用户都审过才算审过
         for i in range(from_idx, total):
             img_path = records[i][0]
-            if not any(img_path in ustat for ustat in status.values()): return i
+            if not any(img_path in ustat for ustat in status.values()):
+                return i
     return total - 1
+
 
 # ──────────────────────────────────────────────────────────────
 # Flask
 # ──────────────────────────────────────────────────────────────
 app = Flask(__name__)
 
+
 @app.route("/")
-def index(): return HTML_PAGE
+def index():
+    return HTML_PAGE
+
 
 @app.route("/join", methods=["POST"])
 def join():
-    name = (request.json or {}).get("name","").strip()
-    if not name: return jsonify({"ok":False,"msg":"用户名不能为空"}), 400
+    name = (request.json or {}).get("name", "").strip()
+    if not name:
+        return jsonify({"ok": False, "msg": "用户名不能为空"}), 400
     with lock:
         if name not in users:
             color = USER_COLORS[len(users) % len(USER_COLORS)]
-            users[name] = {"color":color, "idx":next_unreviewed(0, name), "last_seen":time.time()}
+            users[name] = {"color": color, "idx": next_unreviewed(0, name), "last_seen": time.time()}
         else:
             users[name]["last_seen"] = time.time()
         u = users[name]
         accepted, rejected, reviewed = _user_stats(name)
         g_accepted, g_rejected, g_reviewed = _global_stats()
-    return jsonify({"ok":True,"name":name,"color":u["color"],
-                    "idx":u["idx"],"total":total,
-                    "accepted":accepted,"rejected":rejected,"reviewed":reviewed,
-                    "g_accepted":g_accepted,"g_rejected":g_rejected,"g_reviewed":g_reviewed})
+    return jsonify(
+        {
+            "ok": True,
+            "name": name,
+            "color": u["color"],
+            "idx": u["idx"],
+            "total": total,
+            "accepted": accepted,
+            "rejected": rejected,
+            "reviewed": reviewed,
+            "g_accepted": g_accepted,
+            "g_rejected": g_rejected,
+            "g_reviewed": g_reviewed,
+        }
+    )
+
 
 @app.route("/frame")
 def get_frame():
     if total <= 0:
         return jsonify({"ok": False, "msg": "没有可用图像，请检查数据路径"}), 404
-    idx      = int(request.args.get("idx", 0))
-    name     = request.args.get("user","")
+    idx = int(request.args.get("idx", 0))
+    name = request.args.get("user", "")
     prefetch = request.args.get("prefetch", "0") == "1"
-    idx      = max(0, min(idx, total-1))
+    idx = max(0, min(idx, total - 1))
     if not prefetch:
         with lock:
             if name in users:
-                users[name]["idx"]       = idx
+                users[name]["idx"] = idx
                 users[name]["last_seen"] = time.time()
     img_path, source = records[idx]
     label_path = get_label_path(img_path)
@@ -402,43 +469,52 @@ def get_frame():
         ustat = status.get(name, {})
         my_st = ustat.get(img_path)
         # 所有用户对该帧的标注（用于显示谁审过）
-        frame_marks = {
-            u: s.get(img_path) for u, s in status.items() if img_path in s
-        }
+        frame_marks = {u: s.get(img_path) for u, s in status.items() if img_path in s}
         accepted, rejected, reviewed = _user_stats(name)
         g_accepted, g_rejected, g_reviewed = _global_stats()
         now = time.time()
-        online = {n:{"color":u["color"],"idx":u["idx"]}
-                  for n,u in users.items() if now-u["last_seen"]<60}
-    return jsonify({
-        "idx":idx,"total":total,"source":source,
-        "img_path":img_path,"label_path":label_path,
-        "label_exists":os.path.exists(label_path),
-        # 当前用户自己的标注状态
-        "status":my_st["status"] if my_st else None,
-        "marked_by": name if my_st else None,
-        # 所有人对该帧的标注
-        "frame_marks": {u: {"status": v["status"], "ts": v["ts"]}
-                        for u, v in frame_marks.items()},
-        "image_b64":b64,
-        "orig_w":orig_w,"orig_h":orig_h,"disp_w":disp_w,"disp_h":disp_h,
-        "boxes":boxes,
-        "accepted":accepted,"rejected":rejected,"reviewed":reviewed,
-        "g_accepted":g_accepted,"g_rejected":g_rejected,"g_reviewed":g_reviewed,
-        "online_users":online,
-    })
+        online = {n: {"color": u["color"], "idx": u["idx"]} for n, u in users.items() if now - u["last_seen"] < 60}
+    return jsonify(
+        {
+            "idx": idx,
+            "total": total,
+            "source": source,
+            "img_path": img_path,
+            "label_path": label_path,
+            "label_exists": os.path.exists(label_path),
+            # 当前用户自己的标注状态
+            "status": my_st["status"] if my_st else None,
+            "marked_by": name if my_st else None,
+            # 所有人对该帧的标注
+            "frame_marks": {u: {"status": v["status"], "ts": v["ts"]} for u, v in frame_marks.items()},
+            "image_b64": b64,
+            "orig_w": orig_w,
+            "orig_h": orig_h,
+            "disp_w": disp_w,
+            "disp_h": disp_h,
+            "boxes": boxes,
+            "accepted": accepted,
+            "rejected": rejected,
+            "reviewed": reviewed,
+            "g_accepted": g_accepted,
+            "g_rejected": g_rejected,
+            "g_reviewed": g_reviewed,
+            "online_users": online,
+        }
+    )
+
 
 @app.route("/touch", methods=["POST"])
 def touch():
-    """预加载命中后，轻量更新用户位置并返回最新状态（无图片）"""
+    """预加载命中后，轻量更新用户位置并返回最新状态（无图片）."""
     data = request.json or {}
     name = data.get("user", "")
-    idx  = int(data.get("idx", 0))
+    idx = int(data.get("idx", 0))
     idx = max(0, min(idx, total - 1)) if total else 0
     img_path = records[idx][0] if total else ""
     with lock:
         if name in users:
-            users[name]["idx"]       = idx
+            users[name]["idx"] = idx
             users[name]["last_seen"] = time.time()
         ustat = status.get(name, {})
         my_st = ustat.get(img_path)
@@ -446,52 +522,59 @@ def touch():
         accepted, rejected, reviewed = _user_stats(name)
         g_accepted, g_rejected, g_reviewed = _global_stats()
         now = time.time()
-        online = {n:{"color":u["color"],"idx":u["idx"]}
-                  for n,u in users.items() if now-u["last_seen"]<60}
-    return jsonify({
-        "status": my_st["status"] if my_st else None,
-        "frame_marks": {u: {"status": v["status"], "ts": v["ts"]}
-                        for u, v in frame_marks.items()},
-        "accepted": accepted, "rejected": rejected, "reviewed": reviewed,
-        "g_accepted": g_accepted, "g_rejected": g_rejected, "g_reviewed": g_reviewed,
-        "online_users": online,
-    })
+        online = {n: {"color": u["color"], "idx": u["idx"]} for n, u in users.items() if now - u["last_seen"] < 60}
+    return jsonify(
+        {
+            "status": my_st["status"] if my_st else None,
+            "frame_marks": {u: {"status": v["status"], "ts": v["ts"]} for u, v in frame_marks.items()},
+            "accepted": accepted,
+            "rejected": rejected,
+            "reviewed": reviewed,
+            "g_accepted": g_accepted,
+            "g_rejected": g_rejected,
+            "g_reviewed": g_reviewed,
+            "online_users": online,
+        }
+    )
+
 
 @app.route("/mark", methods=["POST"])
 def mark():
     data = request.json or {}
-    idx  = int(data.get("idx",0))
-    st   = data.get("status")
-    name = data.get("user","?")
+    idx = int(data.get("idx", 0))
+    st = data.get("status")
+    name = data.get("user", "?")
     if idx < 0 or idx >= total:
-        return jsonify({"ok":False,"msg":"idx out of range"}), 400
+        return jsonify({"ok": False, "msg": "idx out of range"}), 400
     img_path = records[idx][0]
     with lock:
         if name not in status:
             status[name] = {}
-        if st in ("accept","reject"):
-            status[name][img_path] = {"status":st, "ts":time.time()}
+        if st in ("accept", "reject"):
+            status[name][img_path] = {"status": st, "ts": time.time()}
         elif st is None:
             status[name].pop(img_path, None)
         save_progress()
-    return jsonify({"ok":True,"idx":idx,"status":st,"user":name})
+    return jsonify({"ok": True, "idx": idx, "status": st, "user": name})
+
 
 @app.route("/next_unreviewed")
 def api_next_unreviewed():
-    from_idx  = int(request.args.get("from",0))
-    user_name = request.args.get("user","")
-    with lock: nxt = next_unreviewed(from_idx, user_name)
-    return jsonify({"idx":nxt})
+    from_idx = int(request.args.get("from", 0))
+    user_name = request.args.get("user", "")
+    with lock:
+        nxt = next_unreviewed(from_idx, user_name)
+    return jsonify({"idx": nxt})
+
 
 @app.route("/sync")
 def sync():
-    since     = float(request.args.get("since",0))
-    user_name = request.args.get("user","")
+    since = float(request.args.get("since", 0))
+    user_name = request.args.get("user", "")
     with lock:
         # 只推送该用户自己的变更
         ustat = status.get(user_name, {})
-        changes = {str(record_index[p]): v for p, v in ustat.items()
-                   if p in record_index and v["ts"] > since}
+        changes = {str(record_index[p]): v for p, v in ustat.items() if p in record_index and v["ts"] > since}
         # 也推送其他人对同一帧的标注（让前端可以显示他人状态）
         frame_changes = {}
         for uname, ustats in status.items():
@@ -502,18 +585,28 @@ def sync():
                         frame_changes[sk] = {}
                     frame_changes[sk][uname] = {"status": v["status"], "ts": v["ts"]}
         now = time.time()
-        online = {n:{"color":u["color"],"idx":u["idx"]}
-                  for n,u in users.items() if now-u["last_seen"]<60}
+        online = {n: {"color": u["color"], "idx": u["idx"]} for n, u in users.items() if now - u["last_seen"] < 60}
         accepted, rejected, reviewed = _user_stats(user_name)
         g_accepted, g_rejected, g_reviewed = _global_stats()
-    return jsonify({"ts":time.time(),"changes":changes,"frame_changes":frame_changes,
-                    "online_users":online,
-                    "accepted":accepted,"rejected":rejected,"reviewed":reviewed,
-                    "g_accepted":g_accepted,"g_rejected":g_rejected,"g_reviewed":g_reviewed})
+    return jsonify(
+        {
+            "ts": time.time(),
+            "changes": changes,
+            "frame_changes": frame_changes,
+            "online_users": online,
+            "accepted": accepted,
+            "rejected": rejected,
+            "reviewed": reviewed,
+            "g_accepted": g_accepted,
+            "g_rejected": g_rejected,
+            "g_reviewed": g_reviewed,
+        }
+    )
+
 
 @app.route("/reset", methods=["POST"])
 def reset_all():
-    """清除所有标注进度，重新开始"""
+    """清除所有标注进度，重新开始."""
     global status
     user = (request.json or {}).get("user", "")
     with lock:
@@ -529,30 +622,30 @@ def reset_all():
     print(f"[INFO] {msg}")
     return jsonify({"ok": True, "msg": msg})
 
+
 @app.route("/save_label", methods=["POST"])
 def save_label():
-    """保存修改后的标注框到 label 文件"""
-    data  = request.json or {}
-    idx   = int(data.get("idx",0))
-    boxes = data.get("boxes",[])
+    """保存修改后的标注框到 label 文件."""
+    data = request.json or {}
+    idx = int(data.get("idx", 0))
+    boxes = data.get("boxes", [])
     if idx < 0 or idx >= total:
-        return jsonify({"ok":False,"msg":"idx out of range"}), 400
-    img_path,_ = records[idx]
+        return jsonify({"ok": False, "msg": "idx out of range"}), 400
+    img_path, _ = records[idx]
     label_path = get_label_path(img_path)
     try:
         os.makedirs(os.path.dirname(label_path), exist_ok=True)
-        with open(label_path,"w") as f:
-            for b in boxes:
-                f.write(f"{b['cls_id']} {b['cx']} {b['cy']} {b['bw']} {b['bh']}\n")
-        return jsonify({"ok":True,"label_path":label_path,"saved_boxes":len(boxes)})
+        with open(label_path, "w") as f:
+            f.writelines(f"{b['cls_id']} {b['cx']} {b['cy']} {b['bw']} {b['bh']}\n" for b in boxes)
+        return jsonify({"ok": True, "label_path": label_path, "saved_boxes": len(boxes)})
     except Exception as e:
-        return jsonify({"ok":False,"msg":str(e)}), 500
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
 
 @app.route("/save", methods=["POST"])
 def save():
-    data     = request.json or {}
-    out_path = data.get("out_path",
-        "/pcpt/pcpt/project/atlb/vla/ultralytics/dataset/accepted.txt")
+    data = request.json or {}
+    out_path = data.get("out_path", "/pcpt/pcpt/project/atlb/vla/ultralytics/dataset/accepted.txt")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     base, ext = os.path.splitext(out_path)
 
@@ -562,18 +655,18 @@ def save():
     with lock:
         # 先按用户各自输出
         for uname, ustat in status.items():
-            u_accepted = [p for p, _ in records
-                          if p in ustat and ustat[p]["status"] == "accept"]
-            u_rejected = [p for p, _ in records
-                          if p in ustat and ustat[p]["status"] == "reject"]
+            u_accepted = [p for p, _ in records if p in ustat and ustat[p]["status"] == "accept"]
+            u_rejected = [p for p, _ in records if p in ustat and ustat[p]["status"] == "reject"]
             safe_name = uname.replace("/", "_").replace(" ", "_")
             if u_accepted:
                 p = f"{base}_{safe_name}{ext}"
-                with open(p, "w") as f: f.write("\n".join(u_accepted) + "\n")
+                with open(p, "w") as f:
+                    f.write("\n".join(u_accepted) + "\n")
                 saved.append(f"accept[{uname}]: {len(u_accepted)} 条 → {p}")
             if u_rejected:
-                p = f"{base.replace('accepted','rejected')}_{safe_name}{ext}"
-                with open(p, "w") as f: f.write("\n".join(u_rejected) + "\n")
+                p = f"{base.replace('accepted', 'rejected')}_{safe_name}{ext}"
+                with open(p, "w") as f:
+                    f.write("\n".join(u_rejected) + "\n")
                 saved.append(f"reject[{uname}]: {len(u_rejected)} 条 → {p}")
 
         # 也生成一份合并文件（同一帧多人都标了取最新）
@@ -584,19 +677,20 @@ def save():
                     continue
                 if img_path not in merged or v["ts"] > merged[img_path]["ts"]:
                     merged[img_path] = v
-        all_accepted = [p for p, _ in records
-                        if p in merged and merged[p]["status"] == "accept"]
-        all_rejected = [p for p, _ in records
-                        if p in merged and merged[p]["status"] == "reject"]
+        all_accepted = [p for p, _ in records if p in merged and merged[p]["status"] == "accept"]
+        all_rejected = [p for p, _ in records if p in merged and merged[p]["status"] == "reject"]
         if all_accepted:
-            with open(out_path, "w") as f: f.write("\n".join(all_accepted) + "\n")
+            with open(out_path, "w") as f:
+                f.write("\n".join(all_accepted) + "\n")
             saved.append(f"accept[合并]: {len(all_accepted)} 条 → {out_path}")
         reject_path = base.replace("accepted", "rejected") + ext
         if all_rejected:
-            with open(reject_path, "w") as f: f.write("\n".join(all_rejected) + "\n")
+            with open(reject_path, "w") as f:
+                f.write("\n".join(all_rejected) + "\n")
             saved.append(f"reject[合并]: {len(all_rejected)} 条 → {reject_path}")
 
-    return jsonify({"ok":True,"saved":saved,"count":len(all_accepted)+len(all_rejected)})
+    return jsonify({"ok": True, "saved": saved, "count": len(all_accepted) + len(all_rejected)})
+
 
 # ──────────────────────────────────────────────────────────────
 # HTML
@@ -1402,22 +1496,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8888)
     parser.add_argument("--host", type=str, default="0.0.0.0")
-    parser.add_argument("--train-txt", type=str, default=DEFAULT_TRAIN_TXT,
-                        help="图像路径 txt；未设置 --data-root 时使用")
-    parser.add_argument("--val-txt", type=str, default=DEFAULT_VAL_TXT,
-                        help="验证图像路径 txt；未设置 --data-root 时使用")
-    parser.add_argument("--data-root", type=str, default="",
-                        help="case 数据根目录；会递归扫描 */images/* 图像")
-    parser.add_argument("--progress-file", type=str, default="",
-                        help="审核进度 JSON 文件")
-    parser.add_argument("--weights", type=str, default=str(DEFAULT_WEIGHTS),
-                        help="用于生成初始 labels_10cls 的模型权重")
-    parser.add_argument("--model-cfg", type=str, default=str(DEFAULT_MODEL_CFG),
-                        help="模型 yaml 配置；参考 infer.py 先建模型再 load 权重，留空则直接用权重")
-    parser.add_argument("--infer-on-start", action="store_true",
-                        help="启动 Web 服务前先对缺失 label 的图像做模型推理")
-    parser.add_argument("--overwrite-labels", action="store_true",
-                        help="推理时覆盖已有 label 文件")
+    parser.add_argument(
+        "--train-txt", type=str, default=DEFAULT_TRAIN_TXT, help="图像路径 txt；未设置 --data-root 时使用"
+    )
+    parser.add_argument(
+        "--val-txt", type=str, default=DEFAULT_VAL_TXT, help="验证图像路径 txt；未设置 --data-root 时使用"
+    )
+    parser.add_argument("--data-root", type=str, default="", help="case 数据根目录；会递归扫描 */images/* 图像")
+    parser.add_argument("--progress-file", type=str, default="", help="审核进度 JSON 文件")
+    parser.add_argument(
+        "--weights", type=str, default=str(DEFAULT_WEIGHTS), help="用于生成初始 labels_10cls 的模型权重"
+    )
+    parser.add_argument(
+        "--model-cfg",
+        type=str,
+        default=str(DEFAULT_MODEL_CFG),
+        help="模型 yaml 配置；参考 infer.py 先建模型再 load 权重，留空则直接用权重",
+    )
+    parser.add_argument("--infer-on-start", action="store_true", help="启动 Web 服务前先对缺失 label 的图像做模型推理")
+    parser.add_argument("--overwrite-labels", action="store_true", help="推理时覆盖已有 label 文件")
     parser.add_argument("--imgsz", type=int, default=1600)
     parser.add_argument("--conf", type=float, default=0.3)
     parser.add_argument("--iou", type=float, default=0.7)
